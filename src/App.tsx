@@ -1,7 +1,7 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {FormEvent, useCallback, useEffect, useState} from 'react';
 import logo from './logo.svg';
 import './App.css';
-import IndexedDB from "./IndexedDB";
+import IndexedDB, {ObjectStore} from "./IndexedDB";
 
 interface Movie {
   id : number;
@@ -9,30 +9,59 @@ interface Movie {
   year : number;
 }
 
+interface Student {
+    num : number;
+    name : string;
+}
+
 function App() {
-  const [db, setDb] = useState<IndexedDB>();
+    const [db, setDb] = useState<IndexedDB>();
+    const [studentStore, setStudentStore] = useState<ObjectStore<Student>>();
+    const [students, setStudents] = useState<Student[]>([]);
+    const [numValue, setNumValue] = useState<number>();
+    const [nameValue, setNameValue] = useState<string>();
 
   useEffect(() => {
-    const idb = new IndexedDB('Test DataBase');
-    setDb(idb);
+      openDb();
+      return () => db?.close();
   }, [])
 
-  const seeMovies = async() => {
-    const sampleMovies : Movie[] = [
-        {
-          id : 300,
-          title : "new movie",
-          year : 2019
-        },
-        {
-          id : 305,
-          title : "bye",
-          year : 2003
+    const openDb = async() => {
+      const openedDb = new IndexedDB('My DB');
+      setDb(openedDb);
+    }
+
+    useEffect(() => {
+        if (db) getStudentStore();
+    }, [db])
+
+    const getStudentStore = async() => {
+        // @ts-ignore
+        let store = db.getObjectStore('student');
+        if (!store) {
+            // @ts-ignore
+            store = await db.createObjectStore<Student>('student', 'num');
         }
-      ];
-    const a = await db?.getAllItems('movies')
-    console.log(a, "LALLA");
-  }
+        setStudentStore(store);
+    }
+
+    useEffect(() => {
+        if (studentStore) {
+            getStudents();
+        }
+    }, [studentStore])
+
+    const getStudents = async() => {
+      // @ts-ignore
+        const studentsData = await studentStore.getAllItems();
+        setStudents(studentsData);
+    }
+
+    const addStudent = (student : Student) => {
+      if (!studentStore) throw Error();
+      studentStore.putItem(student);
+    }
+
   // const [db, setDb] = useState<IDBDatabase>();
   // const [movies, setMovies] = useState<Movie[]>();
   // const [inTransaction, setInTransation] = useState<boolean>(false);
@@ -130,12 +159,33 @@ function App() {
   // }
   //
 
+    const onSubmit = (event : FormEvent) => {
+      event.preventDefault();
+      const student : Student = {
+          num : numValue as number,
+          name : nameValue as string
+      }
+      addStudent(student);
+    }
 
   return (
     <div className="App">
+        <form onSubmit={onSubmit}>
+            <input type='number' value={numValue} onChange={() => setNumValue(numValue)} required/>
+            <input type={'text'} value={nameValue} onChange={() => setNameValue(nameValue)} required />
+            <button type={'submit'}>저장</button>
+        </form>
       {/*<button type={"button"} onClick={onClick}>영화추가</button>*/}
       {/*<button type={"button"} onClick={clearMovies}>DB 초기화</button>*/}
-      <button type={'button'} onClick={seeMovies}>보기</button>
+        <ul>
+            {students.map((student) => (
+                <li key={student.num}>
+                    <span>번호 : {student.num}</span>
+                    <span>이름 : {student.name}</span>
+                </li>
+            ))}
+        </ul>
+
       <div>
         {/*{db?.transaction('movies')?.objectStore('movies')?.getAll()?.onsuccess(e => {e.target.result.map(movie => {*/}
         {/*  <p>{movie.id}</p>*/}
