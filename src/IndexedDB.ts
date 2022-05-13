@@ -4,21 +4,9 @@
 //comments
 
 export class IndexedDBManager {
-    private name : string; //name of database
-    private db : IDBDatabase | undefined; //undefind if current browser doesn't support indexedDB
     private objectStores : Record<string, ObjectStore<any>> = {}; // { $storeName : $ObjectStoreInstance }
 
-    constructor(name : string) {
-        if (!window.indexedDB) throw Error("indexedDB not supported on this platform");
-        this.name = name;
-        this.open();
-    }
-
-    private open() {
-        const openRequest = indexedDB.open(this.name);
-        openRequest.onsuccess = () => {
-            this.db = openRequest.result;
-        };
+    constructor(private db : IDBDatabase) {
     }
 
     public close() {
@@ -26,9 +14,8 @@ export class IndexedDBManager {
     }
 
     public async createObjectStore<T>(storeName : string, keyPath : string | string[]) {
-        if (!this.db) throw Error("DB doesn't exist");
-        const objectStore = new ObjectStore(storeName, keyPath, this.db);
-        this.objectStores[storeName] = objectStore;
+        const objectStore = new ObjectStoreManager(storeName, keyPath, this.db);
+        this.objectStoreManagers[storeName] = objectStore;
         return objectStore;
         // createIndexParams.forEach((createIndexParam) => {
         //     store.createIndex(createIndexParam.name, createIndexParam.keyPath, createIndexParam.options)
